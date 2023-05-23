@@ -245,11 +245,11 @@ with st.sidebar:
 
 st.title(TITLE)
 
-col_debug = st.container()
+# col_debug = st.container()
 
-if col_debug.checkbox("Artikelliste anzeigen"):
-    col_debug.subheader("Artikelliste (Daten sind nicht Live)")
-    col_debug.dataframe(df_articles[relevant_columns])
+# if col_debug.checkbox("Artikelliste anzeigen"):
+# col_debug.subheader("Artikelliste (Daten sind nicht Live)")
+# col_debug.dataframe(df_articles[relevant_columns])
 
 col_left_config, col_right_config = st.columns([1, 2])
 col_left_config.markdown("----")
