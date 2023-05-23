@@ -336,14 +336,16 @@ if modus == "Texte kürzen":
         col_right_output.subheader(
             f"Zeichen: {article.character_count()} | Wörter: {article.word_count()} | Zeilen: {article.line_count()}"
         )
-
-        response_title_gen, system_prompt_title = title_generation(
-            article_content, max_character_length_title
-        )
-        print(f"Prompt: {system_prompt_title}")
-        col_right_config.markdown("----")
-        col_right_output.header("Titel Vorschläge")
-        col_right_output.markdown(response_title_gen)
+        try:
+            response_title_gen, system_prompt_title = title_generation(
+                article_content, max_character_length_title
+            )
+            print(f"Prompt: {system_prompt_title}")
+            col_right_config.markdown("----")
+            col_right_output.header("Titel Vorschläge")
+            col_right_output.markdown(response_title_gen)
+        except Exception as e:
+            print(e)
 
 # elif modus == "Ankündigungstexte":
 # pdf = st.file_uploader("Upload your PDF", type="pdf")
