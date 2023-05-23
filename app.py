@@ -66,7 +66,8 @@ openai.api_key = st.secrets["openai_api_token"]
 
 st.set_page_config(page_title=TITLE, page_icon=":robot:", layout="wide")
 
-st.image(Image.open("images/kira_v1.png"), width=120)
+with st.sidebar:
+    st.image(Image.open("images/kira_v1_round.png"), width=90)
 
 
 @dataclass
@@ -92,9 +93,9 @@ def article_summarizer(article_content, text_limit_type, text_limit):
             character_limit = convert_lines_to_characters(text_limit, 27)
         else:
             character_limit = text_limit
-        system_prompt = "Du bist ein Redakteur. Du kürzt Artikel. Du erfindest keine neuen Informationen. Du antwortest auf deutsch. Du erhälst einen Artikel und fasst ihn gut es geht in {character_limit} Zeichen zusammen."
+        system_prompt = f"Du bist ein Redakteur. Du kürzt Artikel. Du erfindest keine neuen Informationen. Du antwortest auf deutsch. Du erhälst einen Artikel und sollst ihn in maximal {character_limit} Zeichen zusammenfassen. Beachte die Limitierung und schreibe ansonsten etwas weniger."
     else:
-        system_prompt = "Du bist ein Redakteur. Du kürzt Artikel. Du erfindest keine neuen Informationen. Du antwortest auf deutsch. Du erhälst einen Artikel und fasst ihn gut es geht in {text_limit} Wörtern zusammen."
+        system_prompt = f"Du bist ein Redakteur. Du kürzt Artikel. Du erfindest keine neuen Informationen. Du antwortest auf deutsch. Du erhälst einen Artikel und sollst ihn in maximal {text_limit} Wörtern zusammenfassen. Beachte die Limitierung und schreibe ansonsten etwas weniger."
     message = [
         {
             "role": "system",
@@ -116,7 +117,7 @@ def article_summarizer(article_content, text_limit_type, text_limit):
 
 @st.cache_data
 def title_generation(article_content, max_character_length):
-    system_prompt = "Du bist ein Redakteur. Du schreibst Titel. Du erfindest keine neuen Informationen. Du antwortest auf deutsch. Du erhälst einen Artikel antwortest mit einer Liste von 5 möglichen suchmaschinenoptimierten Titeln. Die maximale Titellänge beträgt {max_character_length} Zeichen."
+    system_prompt = f"Du bist ein Redakteur. Du schreibst Titel. Du erfindest keine neuen Informationen. Du antwortest auf deutsch. Du erhälst einen Artikel und antwortest mit einer Liste von 5 möglichen Titeln. Die maximale erlaubte Länge pro Titel sind {max_character_length} Zeichen."
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -212,9 +213,13 @@ font-size:250px ; font-family: 'Cooper Black'; color: #FF9633;}
 # -----------
 
 with st.sidebar:
-    st.write("__Willkommen bei KIRA - dem KI Rumble Assistenten.__")
-    st.write("KIRA hilft dir bei der Erstellung von Texten.")
-
+    st.write(
+        "__Willkommen bei KIRA - dem :blue[KI] :blue[R]umble :blue[A]rssistenten.__"
+    )
+    st.write("KIRA unterstützt bei der Erstellung von Texten.")
+    st.warning(
+        "KIRA befindet sich gerade noch in einer frühen Entwicklungsphase. Bei Fragen, Fehlern oder Anregungen bitte an Nikolai Smolnikow wenden."
+    )
     st.markdown(
         """
         <br />
@@ -231,16 +236,14 @@ with st.sidebar:
         <br />
         <br />
         <br />
-        <br />
-        <br />
-        Made by FBI / Nikolai Smolnikow. <br /> Powered by AI.
+        Made by KI Squad / FBI.  <br/>
+        Powered by AI.
         """,
         unsafe_allow_html=True,
     )
 
 
 st.title(TITLE)
-st.subheader("Dein KI Rumble Assistent")
 
 col_debug = st.container()
 
@@ -263,7 +266,7 @@ modus = col_left_config.selectbox(
         # "Ankündigungstexte",
     ),
 )
-
+system_prompt = ""
 
 if modus == "Texte kürzen":
     text_limit_type = col_left_config.selectbox(
@@ -282,7 +285,7 @@ if modus == "Texte kürzen":
         "Titel Textlänge (in Zeichen)", min_value=5, value=60, step=10
     )
 
-    article_content = col_right_config.text_area("Text eingeben / einfügen", height=200)
+    article_content = col_right_config.text_area("Text eingeben / einfügen", height=250)
 
     col_left_config_output, col_right_config_output = st.columns(2)
     article = None
@@ -297,17 +300,27 @@ if modus == "Texte kürzen":
     col_right_config.markdown("----")
 
     if button_value and article_content:
-        response, system_prompt = article_summarizer(
-            article_content=article_content,
-            text_limit=text_limit,
-            text_limit_type=text_limit_type,
-        )
-        col_left_output.header("Artikel")
+        try:
+            response, system_prompt = article_summarizer(
+                article_content=article_content,
+                text_limit=text_limit,
+                text_limit_type=text_limit_type,
+            )
+        except Exception as e:
+            print(e)
+            st.error(
+                "Der Service ist gerade nicht erreichbar. Bitte versuche es später noch einmal. "
+            )
+
+        print(f"Prompt: {system_prompt}")
+        # with st.expander("Prompt anzeigen"):
+        #     st.write(system_prompt)
+        col_left_output.header("Text Original")
         col_left_output.markdown(article_content)
         col_left_output.subheader(
             f"Zeichen: {article.character_count()} | Wörter: {article.word_count()} | Zeilen: {article.line_count()}"
         )
-        col_right_output.header("Artikel gekürzt")
+        col_right_output.header("Text Gekürzt")
         response_full = []
         article_shortened = ""
         article_output_container = col_right_output.empty()
@@ -327,6 +340,7 @@ if modus == "Texte kürzen":
         response_title_gen, system_prompt_title = title_generation(
             article_content, max_character_length_title
         )
+        print(f"Prompt: {system_prompt_title}")
         col_right_config.markdown("----")
         col_right_output.header("Titel Vorschläge")
         col_right_output.markdown(response_title_gen)
