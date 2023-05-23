@@ -7,6 +7,19 @@ import pandas as pd
 import openai
 import streamlit as st
 from PIL import Image
+from openai.error import OpenAIError
+
+from knowledge_gpt.utils import (
+    embed_docs,
+    get_answer,
+    get_sources,
+    parse_docx,
+    parse_pdf,
+    parse_txt,
+    search_docs,
+    text_to_docs,
+    wrap_text_in_html,
+)
 
 
 from utils import (
@@ -48,7 +61,8 @@ relevant_columns = [
 article_title = None
 article_content = None
 
-openai.api_key = st.secrets["openai_api_token"]
+
+openai.api_key = st.secrets["openai_api_token_service"]
 # os.environ["REPLICATE_API_KEY"] = st.secrets["replicate_api_token"]
 
 
@@ -327,19 +341,32 @@ if modus == "Texte kürzen":
         col_right_output.header("Titel Vorschläge")
         col_right_output.markdown(response_title_gen)
 
-else:
-    col_left_config.markdown("Not Yet Implemented")
+elif modus == "Ankündigungstexte":
+    pdf = st.file_uploader("Upload your PDF", type="pdf")
 
+    # extract the text
+    if pdf is not None:
+        pdf_reader = PdfReader(pdf)
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text()
 
-# if button_value and article_content is not None:
-#     num_words_original = get_number_of_words(article_content)
-#     col_left_config_output.header(f"Text im Original")
-#     col_left_config_output.subheader(
-#         f"{num_words_original} Wörter | {get_number_of_characters(article_content)} Zeichen"
-#     )
-#     if modus == "Texte kürzen":
+        # split into chunks
+        text_splitter = CharacterTextSplitter(
+            separator="\n", chunk_size=1000, chunk_overlap=200, length_function=len
+        )
+        chunks = text_splitter.split_text(text)
 
+        col_left_config.markdown("Not Yet Implemented")
 
-# elif modus == "Ankündigungstexte":
-#     st.file_uploader("Upload Files")
-#     st.write("Not Yet Implemented")
+    # if button_value and article_content is not None:
+    #     num_words_original = get_number_of_words(article_content)
+    #     col_left_config_output.header(f"Text im Original")
+    #     col_left_config_output.subheader(
+    #         f"{num_words_original} Wörter | {get_number_of_characters(article_content)} Zeichen"
+    #     )
+    #     if modus == "Texte kürzen":
+
+    # elif modus == "Ankündigungstexte":
+    #     st.file_uploader("Upload Files")
+    #     st.write("Not Yet Implemented")
