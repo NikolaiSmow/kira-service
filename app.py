@@ -31,7 +31,7 @@ html_temp = """
                 
                 </div>
                 """
-TITLE = "Kira - ServiceTeam"
+TITLE = ":blue[KIRA - ServiceTeam]"
 
 
 DATE_COLUMN = "article_publish_date"
@@ -50,7 +50,7 @@ article_title = None
 article_content = None
 
 
-openai.api_key = st.secrets["openai_api_token_service"]
+openai.api_key = st.secrets["openai_api_token"]
 # os.environ["REPLICATE_API_KEY"] = st.secrets["replicate_api_token"]
 
 
@@ -240,6 +240,8 @@ with st.sidebar:
 
 
 st.title(TITLE)
+st.subheader("Dein KI Rumble Assistent")
+
 col_debug = st.container()
 
 if col_debug.checkbox("Artikelliste anzeigen"):
