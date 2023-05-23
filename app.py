@@ -154,21 +154,21 @@ def title_generation(article_content, max_character_length):
 #     return response_content
 
 
-@st.cache_data
-def load_articles(nrows=None):
-    if nrows is None:
-        df_articles = pd.read_csv("data/articles_2023_03.csv")
-    else:
-        df_articles = pd.read_csv("data/articles_2023_03.csv", nrows=nrows)
-    df_articles[DATE_COLUMN] = pd.to_datetime(df_articles[DATE_COLUMN])
-    df_articles["article_content_length"] = df_articles[
-        "article_content_length"
-    ].astype(float)
-    # Filter Data
-    df_articles = df_articles[~df_articles["article_title"].isna()]
-    df_articles = df_articles.sort_values(by=DATE_COLUMN, ascending=False)
-    df_articles = df_articles.rename(columns={"article_content_length": "num_words"})
-    return df_articles
+# @st.cache_data
+# def load_articles(nrows=None):
+#     if nrows is None:
+#         df_articles = pd.read_csv("data/articles_2023_03.csv")
+#     else:
+#         df_articles = pd.read_csv("data/articles_2023_03.csv", nrows=nrows)
+#     df_articles[DATE_COLUMN] = pd.to_datetime(df_articles[DATE_COLUMN])
+#     df_articles["article_content_length"] = df_articles[
+#         "article_content_length"
+#     ].astype(float)
+#     # Filter Data
+#     df_articles = df_articles[~df_articles["article_title"].isna()]
+#     df_articles = df_articles.sort_values(by=DATE_COLUMN, ascending=False)
+#     df_articles = df_articles.rename(columns={"article_content_length": "num_words"})
+#     return df_articles
 
 
 # def get_article_content():
@@ -186,7 +186,7 @@ def get_number_of_characters(article_content: str):
     return len(article_content)
 
 
-df_articles = load_articles()
+# df_articles = load_articles()
 article_content = None
 
 # st.markdown(
@@ -306,36 +306,36 @@ if modus == "Texte kürzen":
                 text_limit=text_limit,
                 text_limit_type=text_limit_type,
             )
+            print(f"Prompt: {system_prompt}")
+            # with st.expander("Prompt anzeigen"):
+            #     st.write(system_prompt)
+            col_left_output.header("Text Original")
+            col_left_output.markdown(article_content)
+            col_left_output.subheader(
+                f"Zeichen: {article.character_count()} | Wörter: {article.word_count()} | Zeilen: {article.line_count()}"
+            )
+            col_right_output.header("Text Gekürzt")
+            response_full = []
+            article_shortened = ""
+            article_output_container = col_right_output.empty()
+            for chunk in response:
+                chunk_message = chunk["choices"][0]["delta"]
+                # if "content" in chunk_message:
+                if "content" in chunk_message:
+                    response_full.append(chunk_message["content"])
+                    article_shortened = "".join(response_full).strip()
+                # result = result.replace("\n", "")
+                article_output_container.markdown(article_shortened)
+            article = Article(content=article_shortened)
+            col_right_output.subheader(
+                f"Zeichen: {article.character_count()} | Wörter: {article.word_count()} | Zeilen: {article.line_count()}"
+            )
         except Exception as e:
             print(e)
             st.error(
-                "Der Service ist gerade nicht erreichbar. Bitte versuche es später noch einmal. "
+                "Etwas ist schief gelaufen... Bitte versuche es etwas später noch einmal. "
             )
 
-        print(f"Prompt: {system_prompt}")
-        # with st.expander("Prompt anzeigen"):
-        #     st.write(system_prompt)
-        col_left_output.header("Text Original")
-        col_left_output.markdown(article_content)
-        col_left_output.subheader(
-            f"Zeichen: {article.character_count()} | Wörter: {article.word_count()} | Zeilen: {article.line_count()}"
-        )
-        col_right_output.header("Text Gekürzt")
-        response_full = []
-        article_shortened = ""
-        article_output_container = col_right_output.empty()
-        for chunk in response:
-            chunk_message = chunk["choices"][0]["delta"]
-            # if "content" in chunk_message:
-            if "content" in chunk_message:
-                response_full.append(chunk_message["content"])
-                article_shortened = "".join(response_full).strip()
-            # result = result.replace("\n", "")
-            article_output_container.markdown(article_shortened)
-        article = Article(content=article_shortened)
-        col_right_output.subheader(
-            f"Zeichen: {article.character_count()} | Wörter: {article.word_count()} | Zeilen: {article.line_count()}"
-        )
         try:
             response_title_gen, system_prompt_title = title_generation(
                 article_content, max_character_length_title
