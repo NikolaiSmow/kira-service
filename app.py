@@ -31,7 +31,7 @@ html_temp = """
                 
                 </div>
                 """
-TITLE = ":blue[KIRA - ServiceTeam]"
+TITLE = "KIRA - ServiceTeam"
 
 
 DATE_COLUMN = "article_publish_date"
@@ -52,6 +52,8 @@ article_content = None
 
 openai.api_key = st.secrets["openai_api_token"]
 # os.environ["REPLICATE_API_KEY"] = st.secrets["replicate_api_token"]
+
+models = ["gpt-3.5-turbo", "pt-3.5-turbo-0301"]
 
 
 # Alternative Prompt / Use cases
@@ -85,39 +87,49 @@ class Article:
         return math.ceil(self.character_count() / self.num_characters_per_line)
 
 
+def convert_word_length_to_token_length(num_words: int):
+    return round(num_words * 1.35)
+
+
+def convert_character_length_to_toklen_length(num_characters: int):
+    """Converts a character length to a token length. Assuming that the average word length is 8 characters."""
+    return round(num_characters * 8 * 1.35)
+
+
 def article_summarizer(article_content, text_limit_type, text_limit):
     print("Running Article Summarizer")
-
+    token_limit = text_limit
     if text_limit_type == "Zeichen" or text_limit_type == "Zeilen":
         if text_limit_type == "Zeilen":
             character_limit = convert_lines_to_characters(text_limit, 27)
         else:
-            character_limit = text_limit
-        system_prompt = f"Du bist ein Redakteur. Du kürzt Artikel. Du erfindest keine neuen Informationen. Du antwortest auf deutsch. Du erhälst einen Artikel und sollst ihn in maximal {character_limit} Zeichen zusammenfassen. Beachte die Limitierung und schreibe ansonsten etwas weniger."
-    else:
-        system_prompt = f"Du bist ein Redakteur. Du kürzt Artikel. Du erfindest keine neuen Informationen. Du antwortest auf deutsch. Du erhälst einen Artikel und sollst ihn in maximal {text_limit} Wörtern zusammenfassen. Beachte die Limitierung und schreibe ansonsten etwas weniger."
+            token_limit = text_limit
+    else:  # text_limit_type == "Wörter"
+        token_limit = convert_word_length_to_token_length(text_limit)
+        # system_prompt = f"Du bist ein Redakteur. Du kürzt Texte. Du erfindest keine neuen Informationen. Du antwortest auf deutsch. Du erhälst einen Texte und sollst ihn in etwas weniger als {character_limit} maximal  {character_limit} Zeichen inklusive Leerzeichen zusammenfassen. Beachte unbedingt diese Limitierung."
+    system_prompt = f"Du bist ein Redakteur. Du kürzt Texte. Du erfindest keine neuen Informationen. Du antwortest auf deutsch. Du erhälst einen Texte und sollst ihn in exakt {token_limit} Token zusammenfassen. Beachte unbedingt diese Limitierung."
     message = [
-        {
-            "role": "system",
-            "content": system_prompt,
-        },
+        # {
+        # "role": "system",
+        # "content": system_prompt,
+        # },
         {
             "role": "user",
-            "content": article_content,
+            "content": f"{system_prompt}. Der Artikel : {article_content}",
         },
     ]
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=message,
-        max_tokens=500,
+        max_tokens=1500,
         stream=True,
     )
     return response, system_prompt
 
 
 @st.cache_data
-def title_generation(article_content, max_character_length):
-    system_prompt = f"Du bist ein Redakteur. Du schreibst Titel. Du erfindest keine neuen Informationen. Du antwortest auf deutsch. Du erhälst einen Artikel und antwortest mit einer Liste von 5 möglichen Titeln. Die maximale erlaubte Länge pro Titel sind {max_character_length} Zeichen."
+def title_suggestions(article_content, max_character_length):
+    system_prompt = f"Du bist ein Redakteur. Du schreibst Titel. Du erfindest keine neuen Informationen. Du antwortest auf deutsch. Du erhälst einen Text und antwortest mit einer Liste von 5 möglichen Titeln. Die maximale erlaubte Länge pro Titel sind {max_character_length} Zeichen."
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -188,20 +200,6 @@ def get_number_of_characters(article_content: str):
 
 # df_articles = load_articles()
 article_content = None
-
-# st.markdown(
-#     """
-# <style>
-# .big-font {
-#     font-size:300px !important;
-# }
-# .normal-font {
-#     font-size:100px !important;
-#     }
-# </style>
-# """,
-#     unsafe_allow_html=True,
-# )
 st.markdown(
     """ <style> .font {
 font-size:250px ; font-family: 'Cooper Black'; color: #FF9633;} 
@@ -213,9 +211,8 @@ font-size:250px ; font-family: 'Cooper Black'; color: #FF9633;}
 # -----------
 
 with st.sidebar:
-    st.write(
-        "__Willkommen bei KIRA - dem :blue[KI] :blue[R]umble :blue[A]rssistenten.__"
-    )
+    st.write("__Willkommen bei KIRA__")
+    st.write("Dein :blue[KI] :blue[R]umble :blue[A]ssistent.")
     st.write("KIRA unterstützt bei der Erstellung von Texten.")
     st.warning(
         "KIRA befindet sich gerade noch in einer frühen Entwicklungsphase. Bei Fragen, Fehlern oder Anregungen bitte an Nikolai Smolnikow wenden."
@@ -243,7 +240,7 @@ with st.sidebar:
     )
 
 
-st.title(TITLE)
+st.title(f":blue[{TITLE}]")
 
 # col_debug = st.container()
 
@@ -256,8 +253,6 @@ col_left_config.markdown("----")
 col_right_config.markdown("----")
 
 
-col_left_output, col_right_output = st.columns(2)
-
 modus = col_left_config.selectbox(
     "Modus",
     (
@@ -268,38 +263,67 @@ modus = col_left_config.selectbox(
 )
 system_prompt = ""
 
-if modus == "Texte kürzen":
-    text_limit_type = col_left_config.selectbox(
-        "Textlimit",
-        (
-            "Wörter",
-            "Zeilen",
-            "Zeichen",
-        ),
-    )
-    text_limit = col_left_config.number_input(
-        f"Neue Textlänge (in {text_limit_type})", step=5, value=50
-    )
+if "text_input_old" not in st.session_state:
+    st.session_state.text_input_old = ""
 
-    max_character_length_title = col_left_config.number_input(
-        "Titel Textlänge (in Zeichen)", min_value=5, value=60, step=10
-    )
 
-    article_content = col_right_config.text_area("Text eingeben / einfügen", height=250)
+def clear_text_input():
+    st.session_state.text_input_old = st.session_state.text_input
+    st.session_state.text_input = ""
 
-    col_left_config_output, col_right_config_output = st.columns(2)
-    article = None
-    if article_content:
-        article = Article(content=article_content)
-        col_right_config.subheader(
-            f"Zeichen: {article.character_count()} | Wörter: {article.word_count()} | Zeilen: {article.line_count()}"
+
+with st.container():
+    if modus == "Texte kürzen":
+        text_limit_type = col_left_config.selectbox(
+            "Textlimit",
+            (
+                "Wörter",
+                "Zeilen",
+                "Zeichen",
+            ),
         )
-    button_value = col_right_config.button("Vorschläge generieren")
+        text_limit = col_left_config.number_input(
+            f"Neue Textlänge (in {text_limit_type})", step=5, value=50, max_value=600
+        )
 
-    col_left_config.markdown("----")
-    col_right_config.markdown("----")
+        col_title_config_left, col_title_config_right = col_left_config.columns(2)
+        max_character_length_title = col_title_config_right.number_input(
+            "Titel Textlänge (in Zeichen)", min_value=5, value=30, step=5, max_value=150
+        )
+        is_title_generation_on = col_title_config_left.radio(
+            "Titel Vorschläge", ("Ja", "Nein")
+        )
+        col_right_config.text_area(
+            "Text eingeben / einfügen", height=250, key="text_input"
+        )
+        article_content = st.session_state.text_input
+        if st.session_state.text_input == "":
+            article_content = st.session_state.text_input_old
+        else:
+            article_content = st.session_state.text_input
 
-    if button_value and article_content:
+        print(f"Artikel Content: {article_content}")
+        col_left_config_output, col_right_config_output = st.columns(2)
+        article = None
+        if article_content:
+            article = Article(content=article_content)
+            col_right_config.text(
+                f"Zeichen: {article.character_count()} | Wörter: {article.word_count()} | Zeilen: {article.line_count()}"
+            )
+        (
+            col_right_config_button_1,
+            col_right_config_button_2,
+            _,
+        ) = col_right_config.columns(3)
+
+        button_generate = col_right_config_button_1.button("Vorschläge generieren")
+        button_clear = col_right_config_button_2.button(
+            "Text Leeren", on_click=clear_text_input
+        )
+
+    if button_generate and article_content:
+        col_left_prompt, col_right_prompt = st.columns(2)
+        col_left_output, col_right_output = st.columns(2)
         try:
             response, system_prompt = article_summarizer(
                 article_content=article_content,
@@ -307,14 +331,15 @@ if modus == "Texte kürzen":
                 text_limit_type=text_limit_type,
             )
             print(f"Prompt: {system_prompt}")
-            # with st.expander("Prompt anzeigen"):
-            #     st.write(system_prompt)
+            with col_right_prompt:
+                with st.expander("Prompt anzeigen"):
+                    st.write(system_prompt)
             col_left_output.header("Text Original")
             col_left_output.markdown(article_content)
-            col_left_output.subheader(
+            col_left_output.text(
                 f"Zeichen: {article.character_count()} | Wörter: {article.word_count()} | Zeilen: {article.line_count()}"
             )
-            col_right_output.header("Text Gekürzt")
+            col_right_output.header("Textvorschlag")
             response_full = []
             article_shortened = ""
             article_output_container = col_right_output.empty()
@@ -327,7 +352,7 @@ if modus == "Texte kürzen":
                 # result = result.replace("\n", "")
                 article_output_container.markdown(article_shortened)
             article = Article(content=article_shortened)
-            col_right_output.subheader(
+            col_right_output.text(
                 f"Zeichen: {article.character_count()} | Wörter: {article.word_count()} | Zeilen: {article.line_count()}"
             )
         except Exception as e:
@@ -335,17 +360,21 @@ if modus == "Texte kürzen":
             st.error(
                 "Etwas ist schief gelaufen... Bitte versuche es etwas später noch einmal. "
             )
-
-        try:
-            response_title_gen, system_prompt_title = title_generation(
-                article_content, max_character_length_title
-            )
-            print(f"Prompt: {system_prompt_title}")
-            col_right_config.markdown("----")
-            col_right_output.header("Titel Vorschläge")
-            col_right_output.markdown(response_title_gen)
-        except Exception as e:
-            print(e)
+            st.error(e.error_code)
+        print(f"Title Generation: {is_title_generation_on}")
+        if is_title_generation_on == "Ja":
+            print("Generating Titles...")
+            try:
+                with col_right_output:
+                    # with st.spinner("Titel werden generiert..."):
+                    response_title_gen, system_prompt_title = title_suggestions(
+                        article_content, max_character_length_title
+                    )
+                print(f"Prompt: {system_prompt_title}")
+                col_right_output.header("Titel Vorschläge")
+                col_right_output.markdown(response_title_gen)
+            except Exception as e:
+                print(e)
 
 # elif modus == "Ankündigungstexte":
 # pdf = st.file_uploader("Upload your PDF", type="pdf")
@@ -365,7 +394,7 @@ if modus == "Texte kürzen":
 
 #     col_left_config.markdown("Not Yet Implemented")
 
-# if button_value and article_content is not None:
+# if button_generate and article_content is not None:
 #     num_words_original = get_number_of_words(article_content)
 #     col_left_config_output.header(f"Text im Original")
 #     col_left_config_output.subheader(

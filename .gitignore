@@ -1,6 +1,6 @@
 .env
 .streamlit
-
+pages
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
